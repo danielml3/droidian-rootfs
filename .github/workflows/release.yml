@@ -1,0 +1,46 @@
+name: Build and release rootfs
+run-name: Build and release rootfs (${{ github.event.inputs.codename }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      codename:
+        description: 'Codename for the build'
+        required: true
+        type: choice
+        options:
+          - gta4xlve
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to create a release and upload assets
+
+    container:
+      image: fedora:latest
+      options: --privileged
+
+    steps:
+      - name: Install dependencies
+        run: |
+          dnf -y update
+          dnf -y install git curl zip wget android-tools e2fsprogs
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run build script
+        run: ./build.sh ${{ github.event.inputs.codename }}
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: release-${{ github.event.inputs.codename }}
+          name: Release for ${{ github.event.inputs.codename }}
+          files: |
+            out/${{ github.event.inputs.codename }}/rootfs.zip
+            out/${{ github.event.inputs.codename }}/userdata.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASES_TOKEN }}
